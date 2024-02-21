@@ -1,0 +1,9 @@
+*.spec
+build/*
+dist/*
+*.zip
+*/build/*
+*.dist/*
+*.cmd
+*.exe
+Hex-2048 Screenshots/*

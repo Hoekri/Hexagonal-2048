@@ -1,81 +1,57 @@
 import pygame
 import math
+import asyncio
 from random import choice
-from os import chdir
-import sys
 
-if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-    chdir(sys._MEIPASS)
+pygame.init()
+score = 0
+boardType = "SmallHexagonal"
+gameType = "power2"
+lose = False
 
-pygame.init() #Initaization and clock and game loop condition
-info = pygame.display.Info()
-clock = pygame.time.Clock()
-run = True
-
-#Screen
 title = "Hexagonal-2048"
-screenSize = (800, 800)
-screen = pygame.display.set_mode(screenSize)
-pygame.display.set_caption(title)
-h = screen.get_height()
-w = screen.get_width()
-
 font = pygame.font.SysFont('couriernew', 45, False)
 font2 = pygame.font.SysFont('couriernew', 60, False)
 font3 = pygame.font.SysFont('couriernew', 37, False)
-score = 0
-start = True
-game = False
-lose = False
-mouseDownLocation = None
 bgColor = "grey20"
 uiTextColor = "lightgreen"
-menuBtn = pygame.Rect(w/2-65, h-75, 65*2, 50)
-smallHexBtn = pygame.Rect(w/6-110, 6/7*h-50, 110*2, 100)
-triangleBtn = pygame.Rect(w*1/2-120, 6/7*h-50, 120*2, 100)
-largeHexBtn = pygame.Rect(w*5/6-110, 6/7*h-50, 110*2, 100)
-boardType = None
 
 def smallHexBoard():
     global boardType
-    emptyBoard = [[-1,0,1],  # test board
-                   [7,8,9,2],
-                   [6,10,3],
-                   [5,4]]
-    emptyBoard = [[8,-1,1],  # test board
-                   [7,9,10,2],
-                   [6,11,3],
-                   [5,4]]
-    emptyBoard = [[-1,-1,-1], # regular board
-                   [-1,-1,-1,-1],
-                   [-1,-1,-1],
-                   [-1,-1]]
+    # emptyBoard = [[-1,0,1],  # test board
+    #               [7,8,9,2],
+    #               [6,10,3],
+    #               [5,4]]
+    emptyBoard = [[-1,-1,-1], # empty board
+                  [-1,-1,-1,-1],
+                  [-1,-1,-1],
+                  [-1,-1]]
     boardType = "SmallHexagonal"
     return [l.copy() for l in emptyBoard]
 
 def largeHexBoard():
     global boardType
-    # emptyBoard = [[-1,-1,-1], # test board
-    #                [-1,-1,-1,-1],
-    #                [-1,-1,-1,-1,-1],
-    #                [-1,-1,-1,-1],
-    #                [-1,-1,-1]]
-    emptyBoard = [[-1,-1,-1], # regular board
-                   [-1,-1,-1,-1],
-                   [-1,-1,-1,-1,-1],
-                   [-1,-1,-1,-1],
-                   [-1,-1,-1]]
+    # emptyBoard = [[-1,0,1],  # test board
+    #               [10,11,12,2],
+    #               [9,16,17,13,3],
+    #               [8,15,14,4],
+    #               [7,6,5]]
+    emptyBoard = [[-1,-1,-1], # empty board
+                  [-1,-1,-1,-1],
+                  [-1,-1,-1,-1,-1],
+                  [-1,-1,-1,-1],
+                  [-1,-1,-1]]
     boardType = "LargeHexagonal"
     return [l.copy() for l in emptyBoard]
 
 def triangleBoard():
     global boardType
-    emptyBoard = [[11,-1,1,2,3],
-                   [10,12,13,4],
-                   [9,14,5],
-                   [8,6],
-                   [7]] # testboard
-    emptyBoard = [[-1,-1,-1,-1,-1],
+    # emptyBoard = [[-1,0,1,2,3], # test board
+    #                [10,11,12,4],
+    #                [9,13,5],
+    #                [8,6],
+    #                [7]]
+    emptyBoard = [[-1,-1,-1,-1,-1], # empty board
                   [-1,-1,-1,-1],
                   [-1,-1,-1],
                   [-1,-1],
@@ -83,11 +59,11 @@ def triangleBoard():
     boardType = "Triangular"
     return [l.copy() for l in emptyBoard]
 
-def drawHexagon(size, pos, color, thickness, content):
+def drawHexagon(screen, size, pos, color, thickness, content):
     position = [(pos[0] + size * math.sin(2 * math.pi * i / 6), 
                  pos[1] + size * math.cos(2 * math.pi * i / 6)) for i in range(6)]
     pygame.draw.polygon(screen, color, position)
-    pygame.draw.polygon(screen, bgColor, position, thickness)
+    pygame.draw.polygon(screen, bgColor, position, math.ceil(thickness))
     contrastColor = "white" if pygame.Color(color).grayscale().g < 127 else "black"
     if len(content) < 3:
         x,y = font2.size(content)
@@ -114,6 +90,78 @@ def collapseBoard(board:list[list[int]], direction:int):
     return board, change
 
 def collapseRow(row:list[int]):
+    global gameType
+    if gameType == "power2":
+        return collapseRowPowerTwo(row)
+    elif gameType == "power3":
+        return collapseRowPowerThree(row)
+    elif gameType == "fibonacci":
+        return collapseRowFibonacci(row)
+    else:
+        raise NotImplementedError(f"{gameType} not implemented")
+
+def collapseRowFibonacci(row:list[int]):
+    change = False
+    emptyIndex = 0
+    lastNumber = None
+    lastNumberIndex = None
+    for i in range(len(row)):
+        if row[i] == 0 and lastNumber == 0:
+            row[lastNumberIndex] = 1
+            row[i] = -1
+            emptyIndex = lastNumberIndex + 1
+            lastNumber = None
+            lastNumberIndex = None
+            change = True
+        elif row[i] >= 0 and lastNumber!=None and abs(row[i] - lastNumber) == 1:
+            row[lastNumberIndex] = max(row[i], lastNumber) + 1
+            row[i] = -1
+            emptyIndex = lastNumberIndex + 1
+            lastNumber = None
+            lastNumberIndex = None
+            change = True
+        elif row[i] != -1 and i != emptyIndex:
+            row[emptyIndex] = row[i]
+            lastNumber = row[emptyIndex]
+            lastNumberIndex = emptyIndex
+            row[i] = -1
+            emptyIndex += 1
+            change = True
+        elif row[i] != -1 and i == emptyIndex:
+            emptyIndex += 1
+            lastNumberIndex = i
+            lastNumber = row[i]
+    return row, change
+
+def collapseRowPowerThree(row:list[int]):
+    change = False
+    emptyIndex = 0
+    lastNumber = None
+    lastNumberIndex = None
+    for i in range(len(row)):
+        if (lastNumberIndex and lastNumberIndex > 0 and row[i] >= 0 and 
+                row[i] == lastNumber and row[lastNumberIndex-1] == lastNumber):
+            row[lastNumberIndex-1] += 1
+            row[i] = -1
+            row[lastNumberIndex] = -1
+            emptyIndex = lastNumberIndex
+            lastNumber = None
+            lastNumberIndex = None
+            change = True
+        elif row[i] != -1 and i != emptyIndex:
+            row[emptyIndex] = row[i]
+            lastNumber = row[emptyIndex]
+            lastNumberIndex = emptyIndex
+            row[i] = -1
+            emptyIndex += 1
+            change = True
+        elif row[i] != -1 and i == emptyIndex:
+            emptyIndex += 1
+            lastNumberIndex = i
+            lastNumber = row[i]
+    return row, change
+
+def collapseRowPowerTwo(row:list[int]):
     change = False
     emptyIndex = 0
     lastNumber = None
@@ -145,6 +193,7 @@ def rotateBoard(board:list[list[int]], amount:int):
     return board
 
 def rotateBoardOneClockwise(board:list[list[int]]):
+    global boardType
     if boardType == "Triangular":
         return rotateTriangleBoard(board)
     elif boardType == "SmallHexagonal":
@@ -222,52 +271,95 @@ def legalMoves(board:list[list[int]]):
         if change: result.append(direction)
     return result
 
-def drawStartMenu(mousePosition):
+def drawStartMenu(screen:pygame.Surface, mousePosition, boardButtons, gameTypeButtons, startButton):
+    global font, font2, font3, title, uiTextColor, gameType
+    h = screen.get_height()
+    w = screen.get_width()
     x,y = font2.size(title)
-    screen.blit(font2.render(title, True, uiTextColor), [w/2-x/2, h/4-y/2])
-    text = "Drag the mouse or use the"
+    screen.blit(font2.render(title, True, uiTextColor), [w/2 - x/2, 100 - y/2])
+    text = "Drag with mouse or finger,"
     x,y = font3.size(text)
-    screen.blit(font3.render(text, True, uiTextColor), [w/2-x/2, 3*h/7-y/2])
+    screen.blit(font3.render(text, True, uiTextColor), [w/2 - x/2, 200 - y/2])
+    size = 70
+    text = "or use the"
+    x,y = font3.size(text)
+    screen.blit(font3.render(text, True, uiTextColor), [w/2 - x/2, 240 - y/2])
     size = 70
     letters = ["D","X","Z","A","W","E"]
     for i in range(6):
         x,y = font.size(letters[i])
         screen.blit(font.render(letters[i], True, uiTextColor), 
                     [w/2 - x/2 + size * math.cos(2 * math.pi * i / 6), 
-                     4*h/7 - y/2 + size * math.sin(2 * math.pi * i / 6)])
+                     350 - y/2 + size * math.sin(2 * math.pi * i / 6)])
     text = "keys to move the hexagons."
     x,y = font3.size(text)
-    screen.blit(font3.render(text,True, uiTextColor), [w/2-x/2, 5*h/7-y/2])
+    screen.blit(font3.render(text,True, uiTextColor), [w/2 - x/2, 460 - y/2])
     
     mp = mousePosition
 
-    buttonColor = 'yellow' if smallHexBtn.collidepoint(mp[0],mp[1]) else uiTextColor
+    gtDoubleBtn, gtFiboBtn, gtTripleBtn = gameTypeButtons
+
+    buttonColor = 'yellow' if gameType == "power2" else uiTextColor
+    pygame.draw.rect(screen, buttonColor, gtDoubleBtn)
+    x,y = font.size("Double")
+    screen.blit(font.render("Double", True, bgColor), [gtDoubleBtn.centerx-x/2,gtDoubleBtn.centery-y/2])
+
+    buttonColor = 'yellow' if gameType == "fibonacci" else uiTextColor
+    pygame.draw.rect(screen, buttonColor, gtFiboBtn)
+    x,y = font.size("Fibonacci")
+    screen.blit(font.render("Fibonacci", True, bgColor), [gtFiboBtn.centerx-x/2,gtFiboBtn.centery-y/2])
+    
+    buttonColor = 'yellow' if gameType == "power3" else uiTextColor
+    pygame.draw.rect(screen, buttonColor, gtTripleBtn)
+    x,y = font.size("Triple")
+    screen.blit(font.render("Triple", True, bgColor), [gtTripleBtn.centerx-x/2,gtTripleBtn.centery-y/2])
+
+    smallHexBtn, triangleBtn, largeHexBtn = boardButtons
+
+    buttonColor = 'yellow' if boardType == "SmallHexagonal" else uiTextColor
     pygame.draw.rect(screen, buttonColor, smallHexBtn)
     x,y = font.size("Small")
     screen.blit(font.render("Small", True, bgColor), [smallHexBtn.centerx-x/2,smallHexBtn.centery-y])
     x,y = font.size("Hexagon")
     screen.blit(font.render("Hexagon", True, bgColor), [smallHexBtn.centerx-x/2,smallHexBtn.centery])
 
-    buttonColor = 'yellow' if triangleBtn.collidepoint(mp[0],mp[1]) else uiTextColor
+    buttonColor = 'yellow' if boardType == "Triangular" else uiTextColor
     pygame.draw.rect(screen, buttonColor, triangleBtn)
     x,y = font.size("Triangle")
     screen.blit(font.render("Triangle", True, bgColor), [triangleBtn.centerx-x/2,triangleBtn.centery-y/2])
     
-    buttonColor = 'yellow' if largeHexBtn.collidepoint(mp[0],mp[1]) else uiTextColor
+    buttonColor = 'yellow' if boardType == "LargeHexagonal" else uiTextColor
     pygame.draw.rect(screen, buttonColor, largeHexBtn)
     x,y = font.size("Large")
     screen.blit(font.render("Large", True, bgColor), [largeHexBtn.centerx-x/2,largeHexBtn.centery-y])
     x,y = font.size("Hexagon")
     screen.blit(font.render("Hexagon", True, bgColor), [largeHexBtn.centerx-x/2,largeHexBtn.centery])
 
-def drawUIText():
+    buttonColor = 'yellow' if startButton.collidepoint(mp[0],mp[1]) else uiTextColor
+    pygame.draw.rect(screen, buttonColor, startButton)
+    x,y = font.size("Start")
+    screen.blit(font.render("Start", True, bgColor), [startButton.centerx-x/2,startButton.centery-y/2])
+
+def drawUIText(screen):
+    global score
+    w = screen.get_width()
     x,_ = font.size(f'Score: {score}')
     screen.blit(font.render(f'Score: {score}', True, uiTextColor), [w-x-20,20])
 
 def getValueString(number:int):
+    global gameType
+    if gameType == "power2":
+        a = 2 
+    elif gameType == "power3":
+        a = 3
+    elif gameType == "fibonacci":
+        return ["","1","2","3","5","8","13","21","34","55","89","144","233","377","610","987",
+                "1597","2584","4181","6765","10946","17711","28657"][number + 1]
+    else:
+        raise NotImplementedError()
     match number:
         case -1: return ""
-        case n: return str(2**n)
+        case n: return str(a**n)
 
 # thanks to https://sashamaps.net/docs/resources/20-colors/
 def getColor(number:int):
@@ -279,8 +371,8 @@ def getColor(number:int):
     '#3cb44b', # green
     '#808000', # olive
     '#42d4f4', # cyan
-    '#911eb4', # purple
     '#000075', # navy
+    '#911eb4', # purple
     '#f032e6', # magenta
     '#000000', # black
     '#ffffff', # white
@@ -297,18 +389,19 @@ def getColor(number:int):
     ]
     return colors[number+1]
 
-def drawCurrentBoard(position, size:int):
-    global board
+def drawCurrentBoard(screen, board:list[list[int]], position, boardWidth:int):
     boardSize = len(board)
+    rt = math.sqrt(3)
     px, py = position
-    m = size // (10*boardSize)
-    px += (10*m) // 2
-    py += (9*m) // 2
+    size = boardWidth / (boardSize * rt)
+    px += size * rt / 2
+    py += size * 3/2
     for y in range(boardSize):
         for x in range(len(board[y])):
-            padding = boardSize - len(board[y])
+            padding = (boardSize - len(board[y])) * size * rt / 2
             i:int = board[y][x]
-            drawHexagon(6*m, [padding*5*m+(x*10*m)+px, (y*9*m)+py], getColor(i), m, getValueString(i))
+            place = [padding + (x * size * rt) + px, (y * size * 3/2) + py]
+            drawHexagon(screen, size, place, getColor(i), size/6, getValueString(i))
 
 def getDirectionFromMouse(down, up):
     dx, dy = down
@@ -324,78 +417,108 @@ def getDirectionFromMouse(down, up):
             return [3,2,1,0,5,4,3][angle]
     return -1
 
-randomGame = False
-boringGame = False
+async def main():
+    global font, font2, font3, lose, score, gameType
+    clock = pygame.time.Clock()
+    #Screen
+    screenSize = (800, 900)
+    screen = pygame.display.set_mode(screenSize)
+    pygame.display.set_caption(title)
+    h = screen.get_height()
+    w = screen.get_width()
 
-while run: #Game loop
-    current_time = pygame.time.get_ticks()
-    keys = pygame.key.get_pressed()
-    mos = pygame.mouse.get_pos()
-    for event in pygame.event.get(): # Event loop
-        if event.type == pygame.QUIT:
-            run = False
-        elif not lose and not start and event.type == pygame.KEYDOWN: # key controls
-            if event.key == pygame.K_a:
-                board = collapseBoardAndSpawnNewNumber(board, 0)
-            elif event.key == pygame.K_z:
-                board = collapseBoardAndSpawnNewNumber(board, 1)
-            elif event.key == pygame.K_x:
-                board = collapseBoardAndSpawnNewNumber(board, 2)
-            elif event.key == pygame.K_d:
-                board = collapseBoardAndSpawnNewNumber(board, 3)
-            elif event.key == pygame.K_e:
-                board = collapseBoardAndSpawnNewNumber(board, 4)
-            elif event.key == pygame.K_w:
-                board = collapseBoardAndSpawnNewNumber(board, 5)
-            elif event.key == pygame.K_r:
-                board = rotateBoardOneClockwise(board)
-            elif event.key == pygame.K_PAGEDOWN:
-                move = choice(legalMoves(board))
-                board = collapseBoardAndSpawnNewNumber(board, move)
-            elif event.key == pygame.K_END:
-                randomGame = True
-            elif event.key == pygame.K_HOME:
-                boringGame = True
-        elif lose and event.type == pygame.MOUSEBUTTONDOWN: # Menu button
-            if menuBtn.collidepoint(mos[0], mos[1]):
-                randomGame = False
-                boringGame = False
-                start = True
-                lose = False
-                game = False
-                score = 0
-        elif game and not lose and event.type == pygame.MOUSEBUTTONDOWN: # mouse controls
-            mouseDownLocation = mos
-        elif mouseDownLocation and event.type == pygame.MOUSEBUTTONUP: # mouse controls
-            direction = getDirectionFromMouse(mouseDownLocation, mos)
-            if direction != -1:
-                board = collapseBoardAndSpawnNewNumber(board, direction)
-            mouseDownLocation = None
-        elif start and (event.type==pygame.MOUSEBUTTONDOWN): # Title screen
-            if triangleBtn.collidepoint(mos[0], mos[1]):
-                board = triangleBoard()
-            elif smallHexBtn.collidepoint(mos[0], mos[1]):
-                board = smallHexBoard()
-            elif largeHexBtn.collidepoint(mos[0], mos[1]):
-                board = largeHexBoard()
-            else:
-                continue
-            start = False
-            game = True
-            board = spawnNewNumber(board)
-    if randomGame and not lose: board = collapseBoardAndSpawnNewNumber(board, choice(legalMoves(board)))
-    if boringGame and not lose: board = collapseBoardAndSpawnNewNumber(board, legalMoves(board)[0])
-    screen.fill(bgColor)
-    if start: # Start menu
-        drawStartMenu(mos)
-    elif game: # Game board
-        drawUIText()
-        drawCurrentBoard([50, 100], 700)
-    if lose: # Draw back to menu button
-        buttonColor = 'yellow' if menuBtn.collidepoint(mos[0],mos[1]) else uiTextColor
-        pygame.draw.rect(screen, buttonColor, menuBtn)
-        x,y = font.size("Menu")
-        screen.blit(font.render('Menu', True, bgColor), [menuBtn.centerx-x/2, menuBtn.centery-y/2])
-    pygame.display.flip() # Update screen
-    clock.tick(60)
-pygame.quit()
+    game = False
+    mouseDownLocation = None
+    gtDoubleBtn = pygame.Rect(w/6-110, h-375, 110*2, 100)
+    gtFiboBtn = pygame.Rect(w/2-120, h-375, 120*2, 100)
+    gtTripleBtn = pygame.Rect(w*5/6-110, h-375, 110*2, 100)
+    gameTypeButtons = [gtDoubleBtn, gtFiboBtn, gtTripleBtn]
+    smallHexBtn = pygame.Rect(w/6-110, h-250, 110*2, 100)
+    triangleBtn = pygame.Rect(w/2-120, h-250, 120*2, 100)
+    largeHexBtn = pygame.Rect(w*5/6-110, h-250, 110*2, 100)
+    boardButtons = [smallHexBtn, triangleBtn, largeHexBtn]
+    startBtn = pygame.Rect(w/2-120, h-125, 120*2, 100)
+    menuBtn = pygame.Rect(w/2-80, h-110, 80*2, 75)
+    run = True
+    start = True
+    randomGame = False
+    boringGame = False
+    board = smallHexBoard()
+    while run: #Game loop
+        await asyncio.sleep(0)
+        mos = pygame.mouse.get_pos()
+        for event in pygame.event.get(): # Event loop
+            if event.type == pygame.QUIT:
+                run = False
+            elif not lose and not start and event.type == pygame.KEYDOWN: # key controls
+                if event.key == pygame.K_a:
+                    board = collapseBoardAndSpawnNewNumber(board, 0)
+                elif event.key == pygame.K_z:
+                    board = collapseBoardAndSpawnNewNumber(board, 1)
+                elif event.key == pygame.K_x:
+                    board = collapseBoardAndSpawnNewNumber(board, 2)
+                elif event.key == pygame.K_d:
+                    board = collapseBoardAndSpawnNewNumber(board, 3)
+                elif event.key == pygame.K_e:
+                    board = collapseBoardAndSpawnNewNumber(board, 4)
+                elif event.key == pygame.K_w:
+                    board = collapseBoardAndSpawnNewNumber(board, 5)
+                elif event.key == pygame.K_r:
+                    board = rotateBoardOneClockwise(board)
+                elif event.key == pygame.K_PAGEDOWN:
+                    move = choice(legalMoves(board))
+                    board = collapseBoardAndSpawnNewNumber(board, move)
+                elif event.key == pygame.K_END:
+                    randomGame = True
+                elif event.key == pygame.K_HOME:
+                    boringGame = True
+            elif lose and event.type == pygame.MOUSEBUTTONDOWN: # Menu button
+                if menuBtn.collidepoint(mos[0], mos[1]):
+                    board = [[-1 for _ in row] for row in board]
+                    randomGame = False
+                    boringGame = False
+                    start = True
+                    lose = False
+                    game = False
+                    score = 0
+            elif game and not lose and event.type == pygame.MOUSEBUTTONDOWN: # mouse controls
+                mouseDownLocation = mos
+            elif mouseDownLocation and event.type == pygame.MOUSEBUTTONUP: # mouse controls
+                direction = getDirectionFromMouse(mouseDownLocation, mos)
+                if direction != -1:
+                    board = collapseBoardAndSpawnNewNumber(board, direction)
+                mouseDownLocation = None
+            elif start and (event.type==pygame.MOUSEBUTTONDOWN): # Title screen
+                if gtDoubleBtn.collidepoint(mos[0], mos[1]):
+                    gameType = "power2"
+                elif gtFiboBtn.collidepoint(mos[0], mos[1]):
+                    gameType = "fibonacci"
+                elif gtTripleBtn.collidepoint(mos[0], mos[1]):
+                    gameType = "power3"
+                if triangleBtn.collidepoint(mos[0], mos[1]):
+                    board = triangleBoard()
+                elif smallHexBtn.collidepoint(mos[0], mos[1]):
+                    board = smallHexBoard()
+                elif largeHexBtn.collidepoint(mos[0], mos[1]):
+                    board = largeHexBoard()
+                elif startBtn.collidepoint(mos[0], mos[1]):
+                    start = False
+                    game = True
+                    board = spawnNewNumber(board)
+        if randomGame and not lose: board = collapseBoardAndSpawnNewNumber(board, choice(legalMoves(board)))
+        elif boringGame and not lose: board = collapseBoardAndSpawnNewNumber(board, legalMoves(board)[0])
+        screen.fill(bgColor)
+        if start: # Start menu
+            drawStartMenu(screen, mos, boardButtons, gameTypeButtons, startBtn)
+        elif game: # Game board
+            drawUIText(screen)
+            drawCurrentBoard(screen, board, [50, 50], 700)
+        if lose: # Draw back to menu button
+            buttonColor = 'yellow' if menuBtn.collidepoint(mos[0],mos[1]) else uiTextColor
+            pygame.draw.rect(screen, buttonColor, menuBtn)
+            x,y = font.size("Menu")
+            screen.blit(font.render('Menu', True, bgColor), [menuBtn.centerx-x/2, menuBtn.centery-y/2])
+        pygame.display.flip() # Update screen
+        clock.tick(60)
+
+asyncio.run(main())
