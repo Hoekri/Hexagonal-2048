@@ -10,9 +10,9 @@ gameType = "power2"
 lose = False
 
 title = "Hexagonal-2048"
-font = pygame.font.SysFont('couriernew', 45, False)
-font2 = pygame.font.SysFont('couriernew', 60, False)
-font3 = pygame.font.SysFont('couriernew', 37, False)
+font = pygame.font.SysFont(None, 60, False)
+font2 = pygame.font.SysFont(None, 80, False)
+font3 = pygame.font.SysFont(None, 50, False)
 bgColor = "grey20"
 uiTextColor = "lightgreen"
 
@@ -295,50 +295,39 @@ def drawStartMenu(screen:pygame.Surface, mousePosition, boardButtons, gameTypeBu
     x,y = font3.size(text)
     screen.blit(font3.render(text,True, uiTextColor), [w/2 - x/2, 460 - y/2])
     
-    mp = mousePosition
-
     gtDoubleBtn, gtFiboBtn, gtTripleBtn = gameTypeButtons
-
     buttonColor = 'yellow' if gameType == "power2" else uiTextColor
-    pygame.draw.rect(screen, buttonColor, gtDoubleBtn)
-    x,y = font.size("Double")
-    screen.blit(font.render("Double", True, bgColor), [gtDoubleBtn.centerx-x/2,gtDoubleBtn.centery-y/2])
-
+    drawButton(screen, "Double", gtDoubleBtn, buttonColor)
     buttonColor = 'yellow' if gameType == "fibonacci" else uiTextColor
-    pygame.draw.rect(screen, buttonColor, gtFiboBtn)
-    x,y = font.size("Fibonacci")
-    screen.blit(font.render("Fibonacci", True, bgColor), [gtFiboBtn.centerx-x/2,gtFiboBtn.centery-y/2])
-    
+    drawButton(screen, "Fibonacci", gtFiboBtn, buttonColor)
     buttonColor = 'yellow' if gameType == "power3" else uiTextColor
-    pygame.draw.rect(screen, buttonColor, gtTripleBtn)
-    x,y = font.size("Triple")
-    screen.blit(font.render("Triple", True, bgColor), [gtTripleBtn.centerx-x/2,gtTripleBtn.centery-y/2])
+    drawButton(screen, "Triple", gtTripleBtn, buttonColor)
+    [pygame.draw.rect(screen, "black", r, 4) for r in gameTypeButtons]
 
     smallHexBtn, triangleBtn, largeHexBtn = boardButtons
-
     buttonColor = 'yellow' if boardType == "SmallHexagonal" else uiTextColor
-    pygame.draw.rect(screen, buttonColor, smallHexBtn)
-    x,y = font.size("Small")
-    screen.blit(font.render("Small", True, bgColor), [smallHexBtn.centerx-x/2,smallHexBtn.centery-y])
-    x,y = font.size("Hexagon")
-    screen.blit(font.render("Hexagon", True, bgColor), [smallHexBtn.centerx-x/2,smallHexBtn.centery])
-
+    drawButton(screen, "Small Hexagon", smallHexBtn, buttonColor, True)
     buttonColor = 'yellow' if boardType == "Triangular" else uiTextColor
-    pygame.draw.rect(screen, buttonColor, triangleBtn)
-    x,y = font.size("Triangle")
-    screen.blit(font.render("Triangle", True, bgColor), [triangleBtn.centerx-x/2,triangleBtn.centery-y/2])
-    
+    drawButton(screen, "Triangle", triangleBtn, buttonColor)
     buttonColor = 'yellow' if boardType == "LargeHexagonal" else uiTextColor
-    pygame.draw.rect(screen, buttonColor, largeHexBtn)
-    x,y = font.size("Large")
-    screen.blit(font.render("Large", True, bgColor), [largeHexBtn.centerx-x/2,largeHexBtn.centery-y])
-    x,y = font.size("Hexagon")
-    screen.blit(font.render("Hexagon", True, bgColor), [largeHexBtn.centerx-x/2,largeHexBtn.centery])
+    drawButton(screen, "Large Hexagon", largeHexBtn, buttonColor, True)
+    [pygame.draw.rect(screen, "black", r, 4) for r in boardButtons]
 
+    mp = mousePosition
     buttonColor = 'yellow' if startButton.collidepoint(mp[0],mp[1]) else uiTextColor
-    pygame.draw.rect(screen, buttonColor, startButton)
-    x,y = font.size("Start")
-    screen.blit(font.render("Start", True, bgColor), [startButton.centerx-x/2,startButton.centery-y/2])
+    drawButton(screen, "Start", startButton, buttonColor)
+
+def drawButton(surface, text:str, rect:pygame.Rect, color, twoLine=False):
+    pygame.draw.rect(surface, color, rect)
+    if not twoLine:
+        x,y = font.size(text)
+        surface.blit(font.render(text, True, bgColor), [rect.centerx-x/2, rect.centery-y/2])
+        return
+    texts = text.split()
+    x,y = font.size(texts[0])
+    surface.blit(font.render(texts[0], True, bgColor), [rect.centerx-x/2, rect.centery-y])
+    x,y = font.size(texts[1])
+    surface.blit(font.render(texts[1], True, bgColor), [rect.centerx-x/2, rect.centery])
 
 def drawUIText(screen):
     global score
@@ -429,13 +418,13 @@ async def main():
 
     game = False
     mouseDownLocation = None
-    gtDoubleBtn = pygame.Rect(w/6-110, h-375, 110*2, 100)
+    gtDoubleBtn = pygame.Rect(w/2-356, h-375, 120*2, 100)
     gtFiboBtn = pygame.Rect(w/2-120, h-375, 120*2, 100)
-    gtTripleBtn = pygame.Rect(w*5/6-110, h-375, 110*2, 100)
+    gtTripleBtn = pygame.Rect(w/2+116, h-375, 120*2, 100)
     gameTypeButtons = [gtDoubleBtn, gtFiboBtn, gtTripleBtn]
-    smallHexBtn = pygame.Rect(w/6-110, h-250, 110*2, 100)
+    smallHexBtn = pygame.Rect(w/2-356, h-250, 120*2, 100)
     triangleBtn = pygame.Rect(w/2-120, h-250, 120*2, 100)
-    largeHexBtn = pygame.Rect(w*5/6-110, h-250, 110*2, 100)
+    largeHexBtn = pygame.Rect(w/2+116, h-250, 120*2, 100)
     boardButtons = [smallHexBtn, triangleBtn, largeHexBtn]
     startBtn = pygame.Rect(w/2-120, h-125, 120*2, 100)
     menuBtn = pygame.Rect(w/2-80, h-110, 80*2, 75)
