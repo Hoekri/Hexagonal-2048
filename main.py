@@ -31,11 +31,11 @@ def smallHexBoard():
 
 def largeHexBoard():
     global boardType
-    # emptyBoard = [[-1,0,1],  # test board
-    #               [10,11,12,2],
-    #               [9,16,17,13,3],
-    #               [8,15,14,4],
-    #               [7,6,5]]
+    # emptyBoard = [[35,-1,1],  # test board
+    #               [19,21,23,3],
+    #               [17,31,33,25,5],
+    #               [15,29,27,7],
+    #               [13,11,9]]
     emptyBoard = [[-1,-1,-1], # empty board
                   [-1,-1,-1,-1],
                   [-1,-1,-1,-1,-1],
@@ -86,7 +86,7 @@ def collapseBoard(board:list[list[int]], direction:int):
     for row in board:
         row, c = collapseRow(row)
         if c: change = True
-    board = rotateBoard(board, (6-direction)%6)
+    board = rotateBoard(board, (6 - direction) % 6)
     return board, change
 
 def collapseRow(row:list[int]):
@@ -317,7 +317,7 @@ def drawStartMenu(screen:pygame.Surface, mousePosition, boardButtons, gameTypeBu
     buttonColor = 'yellow' if startButton.collidepoint(mp[0],mp[1]) else uiTextColor
     drawButton(screen, "Start", startButton, buttonColor)
 
-def drawButton(surface, text:str, rect:pygame.Rect, color, twoLine=False):
+def drawButton(surface:pygame.Surface, text:str, rect:pygame.Rect, color, twoLine=False):
     pygame.draw.rect(surface, color, rect)
     if not twoLine:
         x,y = font.size(text)
@@ -325,11 +325,11 @@ def drawButton(surface, text:str, rect:pygame.Rect, color, twoLine=False):
         return
     texts = text.split()
     x,y = font.size(texts[0])
-    surface.blit(font.render(texts[0], True, bgColor), [rect.centerx-x/2, rect.centery-y])
+    surface.blit(font.render(texts[0], True, bgColor), [rect.centerx-x/2, rect.centery-20-y/2])
     x,y = font.size(texts[1])
-    surface.blit(font.render(texts[1], True, bgColor), [rect.centerx-x/2, rect.centery])
+    surface.blit(font.render(texts[1], True, bgColor), [rect.centerx-x/2, rect.centery+20-y/2])
 
-def drawUIText(screen):
+def drawUIText(screen:pygame.Surface):
     global score
     w = screen.get_width()
     x,_ = font.size(f'Score: {score}')
@@ -342,8 +342,10 @@ def getValueString(number:int):
     elif gameType == "power3":
         a = 3
     elif gameType == "fibonacci":
-        return ["","1","2","3","5","8","13","21","34","55","89","144","233","377","610","987",
-                "1597","2584","4181","6765","10946","17711","28657"][number + 1]
+        return ["","1","2","3","5","8","13","21","34","55","89","144","233","377","610",
+                "987","1597","2584","4181","6765","10946","17711","28657","46368","75025",
+                "121393","196418","317811","514229","832040","1.3 M","2.2 M","3.5 M",
+                "5.7 M","9.2 M","14 M","24 M","WOW!"][number + 1]
     else:
         raise NotImplementedError()
     match number:
@@ -376,7 +378,8 @@ def getColor(number:int):
     '#dcbeff', # lavender
     '#fffac8', # beige
     ]
-    return colors[number+1]
+    n = (number + 1) % len(colors)
+    return colors[n]
 
 def drawCurrentBoard(screen, board:list[list[int]], position, boardWidth:int):
     boardSize = len(board)
@@ -504,9 +507,7 @@ async def main():
             drawCurrentBoard(screen, board, [50, 50], 700)
         if lose: # Draw back to menu button
             buttonColor = 'yellow' if menuBtn.collidepoint(mos[0],mos[1]) else uiTextColor
-            pygame.draw.rect(screen, buttonColor, menuBtn)
-            x,y = font.size("Menu")
-            screen.blit(font.render('Menu', True, bgColor), [menuBtn.centerx-x/2, menuBtn.centery-y/2])
+            drawButton(screen, "Menu", menuBtn, buttonColor)
         pygame.display.flip() # Update screen
         clock.tick(60)
 
